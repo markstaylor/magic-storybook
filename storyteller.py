@@ -7,7 +7,6 @@ from gpiozero import Button
 import re
 import signal
 import sys
-output_stream = sys.stdout
 
 btn_shuffle = Button(17)
 btn_vol_up = Button(27)
@@ -113,14 +112,29 @@ def play_story(tagname, player):
     file = stories_path + str(tagname)
     print("Starting playback of " + tagname)
     if os.path.isdir(file):
-        story_contents = os.listdir(file)
-        media = vlci.media_new(stories_path + str(file + '/' + random.choice(story_contents)))
-        player.set_media(media)
+        story_contents = sorted(os.listdir(file))
+        playlog = file + '/.playlog'
+        if os.path.isfile(playlog):
+            story_contents.pop(0)
+            with open(playlog) as f:
+                next_story = int(f.readlines()[0])
+            if next_story > len(story_contents) + 1:
+                next_story = 0
+            print('Playing story number ' + str(next_story))
+            media = vlci.media_new(file + '/' + story_contents[next_story])
+            player.set_media(media)
+            next_story += 1
+            with open(playlog,'w') as f:
+                f.write(str(next_story))
+        else:
+            print('No playlog, playing random story')
+            media = vlci.media_new(file + '/' + random.choice(story_contents))
+            player.set_media(media)
     elif os.path.isfile(file):
         media = vlci.media_new(file)
         player.set_media(media)
     else:
-        raise Exception('No file or directory found at ' + file)
+        print('No file or directory found at ' + file)
     player.play()
     player.audio_set_mute(False)
     manual_pause = False
@@ -136,6 +150,7 @@ def adjust_volume(value, player):
 btn_shuffle.when_released = shuffle
 btn_vol_up.when_released = vol_up
 btn_vol_down.when_released = vol_down
+signal.signal(signal.SIGINT, signal_handler)
 
 rfid = RFID()
 no_tag_count = 0
@@ -192,6 +207,5 @@ while True:
                     no_tag_count = 0
                     continue
                 else:
-                    print("Tag removed - pause (" + str(no_tag_count) + ")")
                     player.set_pause(1)
             continue
