@@ -170,7 +170,7 @@ while True:
             print(pos)
             if pos == last_pos:
                 print('Shuffling to next story...')
-                play_random()
+                next_shuffle()
             else:
                 last_pos = pos
             continue
